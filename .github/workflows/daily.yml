@@ -1,0 +1,43 @@
+name: 매일 콘텐츠 자동 생성
+
+on:
+  schedule:
+    # UTC 00:00 = KST 09:00
+    - cron: '0 0 * * *'
+  # GitHub Actions 탭에서 수동 실행도 가능
+  workflow_dispatch:
+
+jobs:
+  generate-content:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Python 패키지 설치
+        run: pip install -r scripts/requirements.txt
+
+      - name: 콘텐츠 생성
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          COUPANG_ID: ${{ secrets.COUPANG_ID }}
+        run: python scripts/generate.py
+
+      - name: Git 설정
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: 변경사항 커밋 및 푸시
+        run: |
+          git add posts/ used_keywords.json
+          git diff --cached --quiet || git commit -m "feat: 자동 생성 콘텐츠 추가 $(date +'%Y-%m-%d')"
+          git push
